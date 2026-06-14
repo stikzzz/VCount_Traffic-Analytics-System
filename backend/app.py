@@ -105,14 +105,41 @@ print(f"🎬 Active Root Video Footage Directory: {ROOT_VIDEO_DIR}")
 def download_assets_background(video_manager_instance):
     gdrive_folder = os.environ.get("GOOGLE_DRIVE_FOLDER")
     gdrive_mapping = os.environ.get("GOOGLE_DRIVE_VIDEOS")
+    gdrive_zip = os.environ.get("GOOGLE_DRIVE_ZIP")
     
-    if gdrive_folder or gdrive_mapping:
+    if gdrive_folder or gdrive_mapping or gdrive_zip:
         try:
             import gdown
             os.makedirs(ROOT_VIDEO_DIR, exist_ok=True)
             
-            # 1. Download entire Google Drive folder recursively
-            if gdrive_folder:
+            # 1. Download and extract a single ZIP file (Most reliable for folders!)
+            if gdrive_zip:
+                zip_path = os.path.join(ROOT_VIDEO_DIR, "videos.zip")
+                # Check if we already have video files to avoid re-downloading on restarts
+                has_videos = any(f.lower().endswith((".mp4", ".avi", ".mov")) for f in os.listdir(ROOT_VIDEO_DIR))
+                
+                if not has_videos:
+                    print(f"📥 [Background] Downloading videos ZIP file (ID: {gdrive_zip}) to: {zip_path}")
+                    url = f"https://drive.google.com/uc?id={gdrive_zip}"
+                    gdown.download(url, zip_path, quiet=True)
+                    print("✅ [Background] ZIP download completed. Extracting files...")
+                    
+                    import zipfile
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(ROOT_VIDEO_DIR)
+                    
+                    print("✅ [Background] Extraction completed. Cleaning up ZIP archive...")
+                    try:
+                        os.remove(zip_path)
+                    except:
+                        pass
+                    
+                    video_manager_instance.build_index()
+                else:
+                    print(f"ℹ️ [Background] Video files already exist in directory, skipping ZIP download.")
+            
+            # 2. Download entire Google Drive folder recursively
+            elif gdrive_folder:
                 existing_items = os.listdir(ROOT_VIDEO_DIR)
                 if not existing_items or (len(existing_items) == 1 and existing_items[0] == ".keep"):
                     print(f"📥 [Background] Downloading Google Drive folder structure (ID: {gdrive_folder}) to: {ROOT_VIDEO_DIR}")
@@ -123,7 +150,7 @@ def download_assets_background(video_manager_instance):
                 else:
                     print(f"ℹ️ [Background] Active video directory is not empty, skipping download.")
             
-            # 2. Alternatively, download individual files
+            # 3. Alternatively, download individual files
             elif gdrive_mapping:
                 print("🔗 [Background] Found GOOGLE_DRIVE_VIDEOS mapping, checking assets...")
                 downloaded_any = False
