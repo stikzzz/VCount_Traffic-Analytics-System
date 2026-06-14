@@ -23,13 +23,10 @@ from inference import run_inference
 from models import db, User, VehicleDetection
 import numpy as np
 import joblib
-from tensorflow.keras.models import load_model
-from tensorflow.keras.layers import Dense
+class CustomDense(object):
+    # This will be dynamically replaced when Keras is loaded
+    pass
 
-class CustomDense(Dense):
-    def __init__(self, **kwargs):
-        kwargs.pop('quantization_config', None)
-        super().__init__(**kwargs)
 app = Flask(__name__)
 CORS(app) # Don't forget this, or Next.js won't be allowed to fetch the stats!
 
@@ -154,21 +151,43 @@ stream_manager = StreamManager(video_manager)
 # Trigger background downloader thread
 threading.Thread(target=download_assets_background, args=(video_manager,), daemon=True).start()
 
-# Load LSTM Model and Scaler
-try:
-    traffic_lstm_model = load_model(
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'traffic_lstm_model.keras'),
-        custom_objects={'Dense': CustomDense},
-        compile=False
-    )
-    y_scaler = joblib.load(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'y_scaler.pkl'))
-    print("✅ Successfully loaded LSTM model and scaler.")
-except Exception as e:
-    import traceback
-    print(f"⚠️ Warning: Failed to load LSTM model or scaler:")
-    traceback.print_exc()
-    traffic_lstm_model = None
-    y_scaler = None
+traffic_lstm_model = None
+y_scaler = None
+
+def load_lstm_resources():
+    global traffic_lstm_model, y_scaler
+    if traffic_lstm_model is None:
+        try:
+            print("⏳ Lazy loading LSTM model and scaler...")
+            from tensorflow.keras.models import load_model
+            from tensorflow.keras.layers import Dense
+            import joblib
+            
+            # Dynamically subclass Dense
+            class LstmCustomDense(Dense):
+                def __init__(self, **kwargs):
+                    kwargs.pop('quantization_config', None)
+                    super().__init__(**kwargs)
+            
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'traffic_lstm_model.keras')
+            scaler_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'y_scaler.pkl')
+            
+            if os.path.exists(model_path) and os.path.exists(scaler_path):
+                traffic_lstm_model = load_model(
+                    model_path,
+                    custom_objects={'Dense': LstmCustomDense},
+                    compile=False
+                )
+                y_scaler = joblib.load(scaler_path)
+                print("✅ Successfully lazy-loaded LSTM model and scaler.")
+            else:
+                print("⚠️ LSTM model or scaler files not found.")
+        except Exception as e:
+            import traceback
+            print(f"⚠️ Warning: Failed to lazy load LSTM model or scaler:")
+            traceback.print_exc()
+            traffic_lstm_model = None
+            y_scaler = None
 
 # Global dictionary to store the latest stats without re-running the model
 # Example format: {"T44F1": {"counts": {"car": 4}, "detections": [...]}}
@@ -522,6 +541,7 @@ def get_timeseries(camera_id):
 
 @app.route("/forecast/<camera_id>")
 def get_forecast(camera_id):
+    load_lstm_resources()
     if traffic_lstm_model is None or y_scaler is None:
         return jsonify({"error": "Model not loaded"}), 500
 

@@ -1,8 +1,6 @@
-from ultralytics import YOLO
 import cv2
 import numpy as np
 import os
-import torch
 
 # Global settings with fallback capabilities
 DETECTION_DEVICE = os.environ.get("DETECTION_DEVICE", "intel:gpu")
@@ -22,6 +20,8 @@ global_counts = {}
 def get_model(camera_id):
     global MODEL_PATH, DETECTION_DEVICE
     if camera_id not in models:
+        from ultralytics import YOLO
+        import torch
         print(f"Attempting to load YOLOv8 model from '{MODEL_PATH}' for camera {camera_id}...")
         try:
             models[camera_id] = YOLO(MODEL_PATH)
@@ -103,6 +103,7 @@ def run_inference(frame, camera_id, virtual_lines=None):
             if MODEL_PATH == "model/best_openvino_model":
                 print("Loading PyTorch best.pt for CPU fallback...")
                 MODEL_PATH = "model/best.pt"
+                from ultralytics import YOLO
                 models[camera_id] = YOLO(MODEL_PATH)
                 model = models[camera_id]
             results = model.track(frame, persist=True, verbose=False, device="cpu")[0]
