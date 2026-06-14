@@ -809,6 +809,10 @@ def login():
         'exp': datetime.datetime.now(timezone.utc) + datetime.timedelta(hours=24)
     }, app.config['SECRET_KEY'], algorithm="HS256")
     
+    # Ensure token is a string (older PyJWT versions return bytes)
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+    
     return jsonify({
         'token': token, 
         'role': user.role, 
