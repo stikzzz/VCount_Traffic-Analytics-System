@@ -1,0 +1,44 @@
+# Environment & Configuration variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.txt
+
+# Local large video directories
+videoFootage/
+videoFootage raw/
+
+# Local databases
+backend/data/*.db
+*.db
+
+# Python caches & virtual envs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.ipynb_checkpoints/
+
+# Node.js dependencies
+frontend/node_modules/
+node_modules/
+
+# Next.js build output
+frontend/.next/
+.next/
+out/
+
+# IDE / Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
