@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Models and Large weights
+*.pt
+runs/
+models/yolo*.pt
+ultralytics/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+
+# Database and instances
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+logs/
+*.log
