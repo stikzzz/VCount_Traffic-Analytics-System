@@ -886,5 +886,21 @@ def update_user_status(user_id):
     
     return jsonify({'message': f'User status updated to {new_status}'})
 
+@app.route("/api/debug_files")
+def debug_files():
+    file_list = []
+    try:
+        if os.path.exists(ROOT_VIDEO_DIR):
+            for root, dirs, files in os.walk(ROOT_VIDEO_DIR):
+                for file in files:
+                    file_list.append(os.path.relpath(os.path.join(root, file), ROOT_VIDEO_DIR))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "root_video_dir": ROOT_VIDEO_DIR,
+        "exists": os.path.exists(ROOT_VIDEO_DIR),
+        "files": file_list
+    })
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
