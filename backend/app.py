@@ -805,6 +805,8 @@ def get_forecast(camera_id):
 
 @app.route("/cameras")
 def list_cameras():
+    # Force rebuild index to capture background downloaded files in all Gunicorn workers
+    video_manager.build_index()
     return jsonify({
         "cameras": list(video_manager.camera_map.keys())
     })

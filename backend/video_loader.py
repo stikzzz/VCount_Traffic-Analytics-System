@@ -40,6 +40,9 @@ class VideoManager:
         print("✅ [Indexer] Cameras map keys:", list(self.camera_map.keys()), flush=True)
 
     def get_videos(self, camera_id):
+        # Dynamically build index if empty to handle Gunicorn fork/worker memory lag
+        if not self.camera_map:
+            self.build_index()
         return self.camera_map.get(camera_id.upper(), [])
     
 class StreamManager:
