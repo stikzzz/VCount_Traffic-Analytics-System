@@ -107,6 +107,8 @@ def download_assets_background(video_manager_instance):
     gdrive_mapping = os.environ.get("GOOGLE_DRIVE_VIDEOS")
     gdrive_zip = os.environ.get("GOOGLE_DRIVE_ZIP")
     
+    print(f"🔍 [Downloader] Active Env Variables -> FOLDER: {gdrive_folder}, ZIP: {gdrive_zip}, VIDEOS: {gdrive_mapping}")
+    
     if gdrive_folder or gdrive_mapping or gdrive_zip:
         try:
             import gdown
