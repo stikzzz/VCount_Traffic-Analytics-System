@@ -10,11 +10,18 @@ class VideoManager:
         self.build_index()
 
     def build_index(self):
-        print("🔍 Scanning video folders...")
+        print(f"🔍 [Indexer] Scanning video folders in: {self.root_dir}", flush=True)
+        # Clear map on rebuild to avoid duplicate additions
+        self.camera_map = {}
+        
+        walk_count = 0
+        match_count = 0
         
         for root, dirs, files in os.walk(self.root_dir):
+            walk_count += len(files)
             for file in files:
                 if file.lower().endswith(VIDEO_EXTENSIONS):
+                    match_count += 1
                     filepath = os.path.join(root, file)
 
                     # Extract camera ID (T44F1, T44P1, etc.)
@@ -24,12 +31,13 @@ class VideoManager:
                         self.camera_map[camera_id] = []
 
                     self.camera_map[camera_id].append(filepath)
-
+                    
+        print(f"📊 [Indexer] Total files seen in walk: {walk_count}, matched videos: {match_count}", flush=True)
         # Sort videos per camera (optional)
         for cam in self.camera_map:
             self.camera_map[cam].sort()
 
-        print("✅ Cameras found:", list(self.camera_map.keys()))
+        print("✅ [Indexer] Cameras map keys:", list(self.camera_map.keys()), flush=True)
 
     def get_videos(self, camera_id):
         return self.camera_map.get(camera_id.upper(), [])
