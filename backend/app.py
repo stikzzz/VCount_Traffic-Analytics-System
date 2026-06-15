@@ -118,7 +118,11 @@ def download_assets_background(video_manager_instance):
             if gdrive_zip:
                 zip_path = os.path.join(ROOT_VIDEO_DIR, "videos.zip")
                 # Check if we already have video files to avoid re-downloading on restarts
-                has_videos = any(f.lower().endswith((".mp4", ".avi", ".mov")) for f in os.listdir(ROOT_VIDEO_DIR))
+                has_videos = False
+                for root, dirs, files in os.walk(ROOT_VIDEO_DIR):
+                    if any(f.lower().endswith((".mp4", ".avi", ".mov")) for f in files):
+                        has_videos = True
+                        break
                 
                 if not has_videos:
                     if gdrive_zip.startswith("http://") or gdrive_zip.startswith("https://"):
