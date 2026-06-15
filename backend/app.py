@@ -121,9 +121,23 @@ def download_assets_background(video_manager_instance):
                 has_videos = any(f.lower().endswith((".mp4", ".avi", ".mov")) for f in os.listdir(ROOT_VIDEO_DIR))
                 
                 if not has_videos:
-                    print(f"📥 [Background] Downloading videos ZIP file (ID: {gdrive_zip}) to: {zip_path}", flush=True)
-                    url = f"https://drive.google.com/uc?id={gdrive_zip}"
-                    gdown.download(url, zip_path, quiet=True)
+                    if gdrive_zip.startswith("http://") or gdrive_zip.startswith("https://"):
+                        url = gdrive_zip
+                    else:
+                        url = f"https://drive.google.com/uc?id={gdrive_zip}"
+                        
+                    print(f"📥 [Background] Downloading videos ZIP file from: {url} to: {zip_path}", flush=True)
+                    
+                    if "drive.google.com" in url:
+                        gdown.download(url, zip_path, quiet=True)
+                    else:
+                        import requests
+                        response = requests.get(url, stream=True)
+                        response.raise_for_status()
+                        with open(zip_path, 'wb') as f:
+                            for chunk in response.iter_content(chunk_size=1024*1024):  # 1MB chunks
+                                if chunk:
+                                    f.write(chunk)
                     print("✅ [Background] ZIP download completed. Extracting files...", flush=True)
                     
                     import zipfile
