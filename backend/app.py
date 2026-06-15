@@ -1,6 +1,7 @@
 import cv2
 import time
 import os
+import random
 from dotenv import load_dotenv, find_dotenv
 
 # Load environment variables from .env file (automatically finds parent .env)
@@ -588,6 +589,159 @@ def get_timeseries(camera_id):
 
 @app.route("/forecast/<camera_id>")
 def get_forecast(camera_id):
+    from inference import MOCK_MODE
+    
+    if MOCK_MODE:
+        date_str = request.args.get("date")
+        time_str = request.args.get("time") # e.g. "12:35:00"
+        
+        if not date_str or not time_str:
+            return jsonify({"error": "Missing date or time"}), 400
+
+        try:
+            video_time = datetime.datetime.strptime(time_str, "%H:%M:%S").time()
+            target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "Invalid date or time format"}), 400
+
+        video_datetime = datetime.datetime.combine(target_date, video_time)
+        minute = video_datetime.minute
+        bucket_start_minute = (minute // 15) * 15
+        current_bucket_start = video_datetime.replace(minute=bucket_start_minute, second=0, microsecond=0)
+        
+        history_results = []
+        
+        # 1. Query past 4 intervals (60 minutes lookback)
+        for i in range(4, 0, -1):
+            interval_start = current_bucket_start - datetime.timedelta(minutes=15 * i)
+            interval_end = current_bucket_start - datetime.timedelta(minutes=15 * (i - 1))
+            
+            # Query DB for counts in this interval
+            query = db.session.query(
+                VehicleDetection.vehicle_type,
+                db.func.count(VehicleDetection.id)
+            ).filter(
+                VehicleDetection.camera_id == camera_id,
+                VehicleDetection.date == interval_start.date(),
+                VehicleDetection.timestamp >= interval_start.time()
+            )
+            if interval_end.time() != datetime.time(0, 0):
+                query = query.filter(VehicleDetection.timestamp < interval_end.time())
+                
+            results = query.group_by(VehicleDetection.vehicle_type).all()
+            
+            counts = {"motorcycle": 0, "car": 0, "bus": 0, "truck": 0}
+            for v_type, count in results:
+                if v_type in counts:
+                    counts[v_type] = count
+            
+            # If DB is empty, let's generate mock historical data so the client sees something nice!
+            total_historical = sum(counts.values())
+            if total_historical == 0:
+                counts = {
+                    "car": int(random.uniform(15, 30)),
+                    "motorcycle": int(random.uniform(5, 12)),
+                    "bus": int(random.uniform(0, 2)),
+                    "truck": int(random.uniform(1, 4))
+                }
+            
+            history_results.append({
+                "time": interval_start.strftime("%H:%M"),
+                "car": counts["car"],
+                "motorcycle": counts["motorcycle"],
+                "bus": counts["bus"],
+                "truck": counts["truck"],
+                "is_forecast": False
+            })
+
+        # 2. Query the current active interval
+        curr_results = db.session.query(
+            VehicleDetection.vehicle_type,
+            db.func.count(VehicleDetection.id)
+        ).filter(
+            VehicleDetection.camera_id == camera_id,
+            VehicleDetection.date == video_datetime.date(),
+            VehicleDetection.timestamp >= current_bucket_start.time(),
+            VehicleDetection.timestamp <= video_time
+        ).group_by(VehicleDetection.vehicle_type).all()
+        
+        curr_counts = {"motorcycle": 0, "car": 0, "bus": 0, "truck": 0}
+        for v_type, count in curr_results:
+            if v_type in curr_counts:
+                curr_counts[v_type] = count
+                
+        # If DB is empty, let's generate a realistic mock current count based on elapsed minutes in this 15m block
+        total_curr = sum(curr_counts.values())
+        if total_curr == 0:
+            elapsed_minutes = max(1, minute - bucket_start_minute)
+            curr_counts = {
+                "car": int(random.uniform(1.2, 2.0) * elapsed_minutes),
+                "motorcycle": int(random.uniform(0.3, 0.8) * elapsed_minutes),
+                "bus": int(random.uniform(0, 0.15) * elapsed_minutes),
+                "truck": int(random.uniform(0.1, 0.3) * elapsed_minutes)
+            }
+                
+        now_label = current_bucket_start.strftime("%H:%M") + " (Now)"
+        history_results.append({
+            "time": now_label,
+            "car": curr_counts["car"],
+            "motorcycle": curr_counts["motorcycle"],
+            "bus": curr_counts["bus"],
+            "truck": curr_counts["truck"],
+            "is_forecast": False
+        })
+        
+        # 3. Simulate forecast
+        forecast_results = []
+        forecast_results.append({
+            "time": now_label,
+            "car_forecast": curr_counts["car"],
+            "motorcycle_forecast": curr_counts["motorcycle"],
+            "bus_forecast": curr_counts["bus"],
+            "truck_forecast": curr_counts["truck"],
+            "is_forecast": True
+        })
+        
+        for step in range(1, 9):
+            step_start = current_bucket_start + datetime.timedelta(minutes=15 * step)
+            time_label = step_start.strftime("%H:%M")
+            
+            # Simple simulation using some random walk/fluctuations around baseline
+            import math
+            hour_factor = math.sin((step_start.hour / 24) * 2 * math.pi) * 5  # sine wave for daily traffic
+            
+            pred_counts = {
+                "car": max(5, int(20 + hour_factor + random.uniform(-4, 4))),
+                "motorcycle": max(1, int(8 + hour_factor/2 + random.uniform(-2, 2))),
+                "bus": max(0, int(1 + random.uniform(-1, 1))),
+                "truck": max(0, int(3 + random.uniform(-1, 1)))
+            }
+            
+            forecast_results.append({
+                "time": time_label,
+                "car_forecast": pred_counts["car"],
+                "motorcycle_forecast": pred_counts["motorcycle"],
+                "bus_forecast": pred_counts["bus"],
+                "truck_forecast": pred_counts["truck"],
+                "is_forecast": True
+            })
+            
+        first_forecast_time = (current_bucket_start + datetime.timedelta(minutes=15)).strftime("%H:%M")
+        last_forecast_time = (current_bucket_start + datetime.timedelta(minutes=15 * 8)).strftime("%H:%M")
+        forecast_time = f"{first_forecast_time} - {last_forecast_time}"
+        
+        return jsonify({
+            "forecast_time": forecast_time,
+            "counts": {
+                "motorcycle": forecast_results[1]["motorcycle_forecast"],
+                "car": forecast_results[1]["car_forecast"],
+                "bus": forecast_results[1]["bus_forecast"],
+                "truck": forecast_results[1]["truck_forecast"]
+            },
+            "history": history_results,
+            "forecast": forecast_results
+        })
+
     load_lstm_resources()
     if traffic_lstm_model is None or y_scaler is None:
         return jsonify({"error": "Model not loaded"}), 500
