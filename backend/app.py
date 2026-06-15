@@ -107,7 +107,7 @@ def download_assets_background(video_manager_instance):
     gdrive_mapping = os.environ.get("GOOGLE_DRIVE_VIDEOS")
     gdrive_zip = os.environ.get("GOOGLE_DRIVE_ZIP")
     
-    print(f"🔍 [Downloader] Active Env Variables -> FOLDER: {gdrive_folder}, ZIP: {gdrive_zip}, VIDEOS: {gdrive_mapping}")
+    print(f"🔍 [Downloader] Active Env Variables -> FOLDER: {gdrive_folder}, ZIP: {gdrive_zip}, VIDEOS: {gdrive_mapping}", flush=True)
     
     if gdrive_folder or gdrive_mapping or gdrive_zip:
         try:
@@ -121,16 +121,16 @@ def download_assets_background(video_manager_instance):
                 has_videos = any(f.lower().endswith((".mp4", ".avi", ".mov")) for f in os.listdir(ROOT_VIDEO_DIR))
                 
                 if not has_videos:
-                    print(f"📥 [Background] Downloading videos ZIP file (ID: {gdrive_zip}) to: {zip_path}")
+                    print(f"📥 [Background] Downloading videos ZIP file (ID: {gdrive_zip}) to: {zip_path}", flush=True)
                     url = f"https://drive.google.com/uc?id={gdrive_zip}"
                     gdown.download(url, zip_path, quiet=True)
-                    print("✅ [Background] ZIP download completed. Extracting files...")
+                    print("✅ [Background] ZIP download completed. Extracting files...", flush=True)
                     
                     import zipfile
                     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                         zip_ref.extractall(ROOT_VIDEO_DIR)
                     
-                    print("✅ [Background] Extraction completed. Cleaning up ZIP archive...")
+                    print("✅ [Background] Extraction completed. Cleaning up ZIP archive...", flush=True)
                     try:
                         os.remove(zip_path)
                     except:
@@ -138,23 +138,23 @@ def download_assets_background(video_manager_instance):
                     
                     video_manager_instance.build_index()
                 else:
-                    print(f"ℹ️ [Background] Video files already exist in directory, skipping ZIP download.")
+                    print(f"ℹ️ [Background] Video files already exist in directory, skipping ZIP download.", flush=True)
             
             # 2. Download entire Google Drive folder recursively
             elif gdrive_folder:
                 existing_items = os.listdir(ROOT_VIDEO_DIR)
                 if not existing_items or (len(existing_items) == 1 and existing_items[0] == ".keep"):
-                    print(f"📥 [Background] Downloading Google Drive folder structure (ID: {gdrive_folder}) to: {ROOT_VIDEO_DIR}")
+                    print(f"📥 [Background] Downloading Google Drive folder structure (ID: {gdrive_folder}) to: {ROOT_VIDEO_DIR}", flush=True)
                     url = f"https://drive.google.com/drive/folders/{gdrive_folder}"
                     gdown.download_folder(url, output=ROOT_VIDEO_DIR, quiet=True)
-                    print("✅ [Background] Google Drive folder download completed.")
+                    print("✅ [Background] Google Drive folder download completed.", flush=True)
                     video_manager_instance.build_index()
                 else:
-                    print(f"ℹ️ [Background] Active video directory is not empty, skipping download.")
+                    print(f"ℹ️ [Background] Active video directory is not empty, skipping download.", flush=True)
             
             # 3. Alternatively, download individual files
             elif gdrive_mapping:
-                print("🔗 [Background] Found GOOGLE_DRIVE_VIDEOS mapping, checking assets...")
+                print("🔗 [Background] Found GOOGLE_DRIVE_VIDEOS mapping, checking assets...", flush=True)
                 downloaded_any = False
                 for item in gdrive_mapping.split(","):
                     if ":" in item:
@@ -164,15 +164,15 @@ def download_assets_background(video_manager_instance):
                         
                         dest_path = os.path.join(ROOT_VIDEO_DIR, f"{cam_id}-footage.mp4")
                         if not os.path.exists(dest_path):
-                            print(f"📥 [Background] Downloading video for camera {cam_id}...")
+                            print(f"📥 [Background] Downloading video for camera {cam_id}...", flush=True)
                             url = f"https://drive.google.com/uc?id={file_id}"
                             gdown.download(url, dest_path, quiet=True)
-                            print(f"✅ [Background] Downloaded {cam_id} video successfully.")
+                            print(f"✅ [Background] Downloaded {cam_id} video successfully.", flush=True)
                             downloaded_any = True
                 if downloaded_any:
                     video_manager_instance.build_index()
         except Exception as e:
-            print(f"⚠️ [Background] Error downloading Google Drive assets: {e}")
+            print(f"⚠️ [Background] Error downloading Google Drive assets: {e}", flush=True)
 
 video_manager = VideoManager(ROOT_VIDEO_DIR)
 stream_manager = StreamManager(video_manager)
