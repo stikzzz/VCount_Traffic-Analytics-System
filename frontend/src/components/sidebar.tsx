@@ -1,8 +1,6 @@
-"use client";
-
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   PenTool,
   Aperture,
@@ -15,10 +13,26 @@ import {
   FileDown
 } from "lucide-react";
 import ServerConfigModal from "@/components/ServerConfigModal";
+import { clearAuthData, getAuthName, getAuthEmail } from "@/lib/auth";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [userName, setUserName] = useState("Account");
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const name = getAuthName();
+    const email = getAuthEmail();
+    if (name) setUserName(name);
+    if (email) setUserEmail(email);
+  }, []);
+
+  const handleLogout = () => {
+    clearAuthData();
+    router.push("/login");
+  };
 
   const navItems = [
     { name: "Dashboard", href: "/detection", icon: LayoutDashboard },
@@ -88,12 +102,15 @@ export default function Sidebar() {
             <CircleUser size={24} strokeWidth={2.5} />
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">Account</p>
-            <p className="text-xs text-zinc-500 truncate">name@studio.com</p>
+            <p className="text-sm font-medium text-white truncate">{userName}</p>
+            {userEmail && <p className="text-xs text-zinc-500 truncate">{userEmail}</p>}
           </div>
         </div>
 
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:bg-red-500/10 hover:text-red-400 transition-colors cursor-pointer"
+        >
           <LogOut size={20} />
           <span className="text-sm font-medium">Log out</span>
         </button>
