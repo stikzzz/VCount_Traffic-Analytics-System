@@ -94,11 +94,11 @@ DEFAULT_LOCAL_PATH = r"D:\Users\Chin Zhen Ang\Documents\USM CS\Y4S1\CAT405 - FYP
 ROOT_VIDEO_DIR = os.environ.get("ROOT_VIDEO_DIR")
 
 if not ROOT_VIDEO_DIR:
-    # Bypassed local D: path temporarily to test Google Drive downloader
-    # if os.path.exists(DEFAULT_LOCAL_PATH):
-    #     ROOT_VIDEO_DIR = DEFAULT_LOCAL_PATH
-    # else:
-    ROOT_VIDEO_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "videoFootage"))
+    # Use local D: path if it exists, otherwise fall back to workspace videoFootage folder
+    if os.path.exists(DEFAULT_LOCAL_PATH):
+        ROOT_VIDEO_DIR = DEFAULT_LOCAL_PATH
+    else:
+        ROOT_VIDEO_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "videoFootage"))
 
 print(f"🎬 Active Root Video Footage Directory: {ROOT_VIDEO_DIR}")
 
@@ -199,43 +199,41 @@ stream_manager = StreamManager(video_manager)
 # Trigger background downloader thread
 threading.Thread(target=download_assets_background, args=(video_manager,), daemon=True).start()
 
+# --- Eagerly load LSTM model and scaler at startup ---
 traffic_lstm_model = None
 y_scaler = None
 
-def load_lstm_resources():
-    global traffic_lstm_model, y_scaler
-    if traffic_lstm_model is None:
-        try:
-            print("⏳ Lazy loading LSTM model and scaler...")
-            from tensorflow.keras.models import load_model
-            from tensorflow.keras.layers import Dense
-            import joblib
-            
-            # Dynamically subclass Dense
-            class LstmCustomDense(Dense):
-                def __init__(self, **kwargs):
-                    kwargs.pop('quantization_config', None)
-                    super().__init__(**kwargs)
-            
-            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'traffic_lstm_model.keras')
-            scaler_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'y_scaler.pkl')
-            
-            if os.path.exists(model_path) and os.path.exists(scaler_path):
-                traffic_lstm_model = load_model(
-                    model_path,
-                    custom_objects={'Dense': LstmCustomDense},
-                    compile=False
-                )
-                y_scaler = joblib.load(scaler_path)
-                print("✅ Successfully lazy-loaded LSTM model and scaler.")
-            else:
-                print("⚠️ LSTM model or scaler files not found.")
-        except Exception as e:
-            import traceback
-            print(f"⚠️ Warning: Failed to lazy load LSTM model or scaler:")
-            traceback.print_exc()
-            traffic_lstm_model = None
-            y_scaler = None
+try:
+    print("⏳ Loading LSTM model and scaler at startup...")
+    from tensorflow.keras.models import load_model
+    from tensorflow.keras.layers import Dense
+    import joblib
+    
+    # Dynamically subclass Dense
+    class LstmCustomDense(Dense):
+        def __init__(self, **kwargs):
+            kwargs.pop('quantization_config', None)
+            super().__init__(**kwargs)
+    
+    model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'traffic_lstm_model.keras')
+    scaler_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'lstmModel', 'y_scaler.pkl')
+    
+    if os.path.exists(model_path) and os.path.exists(scaler_path):
+        traffic_lstm_model = load_model(
+            model_path,
+            custom_objects={'Dense': LstmCustomDense},
+            compile=False
+        )
+        y_scaler = joblib.load(scaler_path)
+        print("✅ Successfully loaded LSTM model and scaler at startup.")
+    else:
+        print("⚠️ LSTM model or scaler files not found.")
+except Exception as e:
+    import traceback
+    print(f"⚠️ Warning: Failed to load LSTM model or scaler at startup:")
+    traceback.print_exc()
+    traffic_lstm_model = None
+    y_scaler = None
 
 # Global dictionary to store the latest stats without re-running the model
 # Example format: {"T44F1": {"counts": {"car": 4}, "detections": [...]}}
@@ -742,7 +740,6 @@ def get_forecast(camera_id):
             "forecast": forecast_results
         })
 
-    load_lstm_resources()
     if traffic_lstm_model is None or y_scaler is None:
         return jsonify({"error": "Model not loaded"}), 500
 
