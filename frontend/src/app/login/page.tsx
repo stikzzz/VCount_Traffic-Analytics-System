@@ -1,9 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Mail, Lock, User, ArrowRight, Car, Loader2 } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, Car, Loader2, Settings } from "lucide-react";
 import { setAuthData } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/config";
+import ServerConfigModal from "@/components/ServerConfigModal";
 
 export default function VehicleDesignAuth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +14,7 @@ export default function VehicleDesignAuth() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const router = useRouter();
 
@@ -64,6 +66,19 @@ export default function VehicleDesignAuth() {
 
   return (
     <div className="min-h-screen w-full flex bg-zinc-950 text-zinc-100 font-sans selection:bg-blue-500/30">
+
+      {/* Floating Server Settings Button */}
+      <div className="fixed top-6 right-6 z-20">
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-850/80 hover:border-zinc-700 text-zinc-400 hover:text-zinc-100 rounded-xl text-sm transition-all duration-200 cursor-pointer shadow-lg select-none backdrop-blur-md"
+        >
+          <Settings size={16} className="animate-spin-[duration:10s]" />
+          <span className="font-semibold tracking-wide">Server Setup</span>
+        </button>
+      </div>
+
+      <ServerConfigModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Left Column - Visual/Branding (Hidden on mobile) */}
       <div className="hidden lg:flex w-[60%] relative overflow-hidden bg-zinc-900 border-r border-zinc-800/50">

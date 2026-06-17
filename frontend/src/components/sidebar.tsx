@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 import {
   PenTool,
   Aperture,
@@ -13,16 +14,18 @@ import {
   Table,
   FileDown
 } from "lucide-react";
+import ServerConfigModal from "@/components/ServerConfigModal";
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const navItems = [
     { name: "Dashboard", href: "/detection", icon: LayoutDashboard },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Data Logs", href: "/logs", icon: Table },
     { name: "Export Reports", href: "/export", icon: FileDown },
-    // { name: "Settings", href: "#", icon: Settings },
+    { name: "Server Setup", href: "#settings", icon: Settings },
   ];
 
   return (
@@ -48,6 +51,19 @@ export default function Sidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href || (item.name === "Dashboard" && pathname.startsWith("/detection"));
+
+          if (item.href === "#settings") {
+            return (
+              <button
+                key={item.name}
+                onClick={() => setIsSettingsOpen(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 cursor-pointer"
+              >
+                <Icon size={20} className="text-zinc-500" />
+                <span className="text-sm font-medium">{item.name}</span>
+              </button>
+            );
+          }
 
           return (
             <Link
@@ -82,6 +98,7 @@ export default function Sidebar() {
           <span className="text-sm font-medium">Log out</span>
         </button>
       </div>
+      <ServerConfigModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </aside>
   );
 }
